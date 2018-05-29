@@ -17,9 +17,11 @@ package issues
 
 import (
 	"fmt"
-	"github.com/google/go-github/github"
 	"html/template"
+	"log"
 	"net/http"
+
+	"github.com/google/go-github/github"
 )
 
 const (
@@ -53,6 +55,9 @@ func (lh *ListHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(rw, "%s\n", err)
 		return
+	}
+	for _, i := range issues {
+		log.Println("Issues Handler", i.GetTitle())
 	}
 	err = listTemplate.Execute(rw, &issues)
 	if err != nil {

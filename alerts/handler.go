@@ -17,18 +17,19 @@ package alerts
 import (
 	"encoding/json"
 
-	"github.com/google/go-github/github"
-	//"github.com/kr/pretty"
 	"io/ioutil"
 	"log"
 	"net/http"
+
+	"github.com/google/go-github/github"
+	"github.com/kr/pretty"
 
 	"github.com/prometheus/alertmanager/notify"
 )
 
 type ReceiverClient interface {
 	CloseIssue(issue *github.Issue) (*github.Issue, error)
-	CreateIssue(title, body string) (*github.Issue, error)
+	CreateIssue(repo, title, body string) (*github.Issue, error)
 	ListOpenIssues() ([]*github.Issue, error)
 }
 
@@ -67,7 +68,7 @@ func (rh *ReceiverHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) 
 		rw.WriteHeader(http.StatusBadRequest)
 		return
 	}
-	// log.Print(pretty.Sprint(msg))
+	log.Print(pretty.Sprint(msg))
 
 	// Handle the webhook message.
 	log.Printf("Handling alert: %s", id(msg))
@@ -105,9 +106,10 @@ func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
 	// The message is currently firing and we did not find a matching
 	// issue from github, so create a new issue.
 	if msg.Data.Status == "firing" && foundIssue == nil {
-		msgBody := formatIssueBody(msg)
-		_, err := rh.Client.CreateIssue(msgTitle, msgBody)
-		return err
+		// msgBody := formatIssueBody(msg)
+		return rh.createIssue(msgTitle, msg)
+		// _, err := rh.Client.CreateIssue(repo, msgTitle, msgBody)
+		// return err
 	}
 
 	// The message is resolved and we found a matching open issue from github.
@@ -123,4 +125,11 @@ func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
 
 	// log.Printf("Unsupported WebhookMessage.Data.Status: %s", msg.Data.Status)
 	return nil
+}
+
+func (rh *ReceiverHandler) createIssue(title string, msg *notify.WebhookMessage) error {
+	repo := msg.CommonAnnotations["repo"]
+	msgBody := formatIssueBody(msg)
+	_, err := rh.Client.CreateIssue(repo, title, msgBody)
+	return err
 }

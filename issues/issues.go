@@ -18,6 +18,7 @@
 package issues
 
 import (
+	"io/ioutil"
 	"log"
 
 	"github.com/google/go-github/github"
@@ -30,29 +31,36 @@ import (
 type Client struct {
 	// githubClient is an authenticated client for accessing the github API.
 	GithubClient *github.Client
+	// repos are the github repositories under the above owner.
+	repos []string
 	// owner is the github project (e.g. github.com/<owner>/<repo>).
 	owner string
-	// repo is the github repository under the above owner.
-	repo string
 }
 
 // NewClient creates an Client authenticated using the Github authToken.
 // Future operations are only performed on the given github "owner/repo".
-func NewClient(owner, repo, authToken string) *Client {
+func NewClient(owner string, repos []string, authToken string) *Client {
 	ctx := context.Background()
 	tokenSource := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: authToken},
 	)
 	client := &Client{
 		GithubClient: github.NewClient(oauth2.NewClient(ctx, tokenSource)),
+		repos:        repos,
 		owner:        owner,
-		repo:         repo,
 	}
 	return client
 }
 
 // CreateIssue creates a new Github issue. New issues are unassigned.
-func (c *Client) CreateIssue(title, body string) (*github.Issue, error) {
+func (c *Client) CreateIssue(repo, title, body string) (*github.Issue, error) {
+	// alert
+	//   color: #e03010
+	//   name:  PAGE:grey_exclamation:   (or :zap:)
+	//          :boom:PAGE:boom:
+	//
+	//   search: label:"PAGE:boom:"
+
 	// Construct a minimal github issue request.
 	issueReq := github.IssueRequest{
 		Title: &title,
@@ -63,7 +71,7 @@ func (c *Client) CreateIssue(title, body string) (*github.Issue, error) {
 	// See also: https://developer.github.com/v3/issues/#create-an-issue
 	// See also: https://godoc.org/github.com/google/go-github/github#IssuesService.Create
 	issue, resp, err := c.GithubClient.Issues.Create(
-		context.Background(), c.owner, c.repo, &issueReq)
+		context.Background(), c.owner, repo, &issueReq)
 	if err != nil {
 		log.Printf("Error in CreateIssue: response: %v\n%s",
 			err, pretty.Sprint(resp))
@@ -79,23 +87,35 @@ func (c *Client) CreateIssue(title, body string) (*github.Issue, error) {
 func (c *Client) ListOpenIssues() ([]*github.Issue, error) {
 	var allIssues []*github.Issue
 
-	opts := &github.IssueListByRepoOptions{State: "open"}
+	//opts := &github.IssueListByRepoOptions{State: "open"}
+	sopts := &github.SearchOptions{}
 	for {
-		issues, resp, err := c.GithubClient.Issues.ListByRepo(
-			context.Background(), c.owner, c.repo, opts)
+		// TODO: use "Search" rather than "List" -- is:issue in:title is:open <text>
+		issues, resp, err := c.GithubClient.Search.Issues(
+			context.Background(), "is:issue in:title is:open org:"+c.owner+" Alert", sopts)
+
+		//issues, resp, err := c.GithubClient.Issues.ListByRepo(
+		//context.Background(), c.owner, c.repos[0], opts)
 		if err != nil {
 			log.Printf("Failed to list open github issues: %v\n%s",
 				err, pretty.Sprint(resp))
 			return nil, err
 		}
+		b, _ := ioutil.ReadAll(resp.Body)
+		pretty.Print(string(b))
 		// Collect 'em all.
-		allIssues = append(allIssues, issues...)
+		for _, issue := range issues.Issues {
+			log.Println("ListOpenIssues", issue.GetTitle())
+			i := new(github.Issue)
+			*i = issue
+			allIssues = append(allIssues, i)
+		}
 
 		// Continue loading the next page until all issues are received.
 		if resp.NextPage == 0 {
 			break
 		}
-		opts.ListOptions.Page = resp.NextPage
+		sopts.ListOptions.Page = resp.NextPage
 	}
 	return allIssues, nil
 }
@@ -111,7 +131,7 @@ func (c *Client) CloseIssue(issue *github.Issue) (*github.Issue, error) {
 	// See also: https://developer.github.com/v3/issues/#edit-an-issue
 	// See also: https://godoc.org/github.com/google/go-github/github#IssuesService.Edit
 	closedIssue, resp, err := c.GithubClient.Issues.Edit(
-		context.Background(), c.owner, c.repo, *issue.Number, &issueReq)
+		context.Background(), c.owner, c.repos[0], *issue.Number, &issueReq)
 	if err != nil {
 		log.Printf("Failed to close issue: %v\n%s", err, pretty.Sprint(resp))
 		return nil, err

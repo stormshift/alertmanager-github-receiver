@@ -18,9 +18,10 @@ package alerts
 import (
 	"bytes"
 	"fmt"
-	"github.com/prometheus/alertmanager/notify"
 	"html/template"
 	"log"
+
+	"github.com/prometheus/alertmanager/notify"
 )
 
 const (
@@ -82,7 +83,7 @@ func id(msg *notify.WebhookMessage) string {
 
 // formatTitle constructs an issue title from a webhook message.
 func formatTitle(msg *notify.WebhookMessage) string {
-	return fmt.Sprintf("%s", msg.Data.GroupLabels["alertname"])
+	return fmt.Sprintf("Alert %s", msg.Data.GroupLabels["alertname"])
 }
 
 // formatIssueBody constructs an issue body from a webhook message.
