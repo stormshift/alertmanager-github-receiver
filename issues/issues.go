@@ -54,17 +54,15 @@ func NewClient(owner string, repos []string, authToken string) *Client {
 
 // CreateIssue creates a new Github issue. New issues are unassigned.
 func (c *Client) CreateIssue(repo, title, body string) (*github.Issue, error) {
-	// alert
-	//   color: #e03010
-	//   name:  PAGE:grey_exclamation:   (or :zap:)
-	//          :boom:PAGE:boom:
-	//
-	//   search: label:"PAGE:boom:"
+	// alert color: #e03010
+	//        name: alert:boom:
+	//      search: label:"alert:boom:"
 
 	// Construct a minimal github issue request.
 	issueReq := github.IssueRequest{
-		Title: &title,
-		Body:  &body,
+		Title:  &title,
+		Body:   &body,
+		Labels: &([]string{"alert:boom:"}),
 	}
 
 	// Create the issue.
@@ -92,13 +90,12 @@ func (c *Client) ListOpenIssues() ([]*github.Issue, error) {
 	for {
 		// TODO: use "Search" rather than "List" -- is:issue in:title is:open <text>
 		issues, resp, err := c.GithubClient.Search.Issues(
-			context.Background(), "is:issue in:title is:open org:"+c.owner+" Alert", sopts)
+			context.Background(), `is:issue in:title is:open org:`+c.owner+` label:"alert:boom:"`, sopts)
 
 		//issues, resp, err := c.GithubClient.Issues.ListByRepo(
 		//context.Background(), c.owner, c.repos[0], opts)
 		if err != nil {
-			log.Printf("Failed to list open github issues: %v\n%s",
-				err, pretty.Sprint(resp))
+			log.Printf("Failed to list open github issues: %v\n", err)
 			return nil, err
 		}
 		b, _ := ioutil.ReadAll(resp.Body)
@@ -130,10 +127,15 @@ func (c *Client) CloseIssue(issue *github.Issue) (*github.Issue, error) {
 	// Edits the issue to have "closed" state.
 	// See also: https://developer.github.com/v3/issues/#edit-an-issue
 	// See also: https://godoc.org/github.com/google/go-github/github#IssuesService.Edit
-	closedIssue, resp, err := c.GithubClient.Issues.Edit(
-		context.Background(), c.owner, c.repos[0], *issue.Number, &issueReq)
+	pretty.Print("ISSUE", issue)
+	closedIssue, _, err := c.GithubClient.Issues.Edit(
+		context.Background(),
+		c.owner,
+		c.repos[0],
+		issue.GetNumber(),
+		&issueReq)
 	if err != nil {
-		log.Printf("Failed to close issue: %v\n%s", err, pretty.Sprint(resp))
+		log.Printf("Failed to close issue: %v\n", err)
 		return nil, err
 	}
 	return closedIssue, nil
