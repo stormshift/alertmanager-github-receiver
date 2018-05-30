@@ -128,7 +128,7 @@ func (rh *ReceiverHandler) processAlert(msg *notify.WebhookMessage) error {
 }
 
 func (rh *ReceiverHandler) createIssue(title string, msg *notify.WebhookMessage) error {
-	repo := msg.CommonAnnotations["repo"]
+	repo := msg.CommonLabels["repo"]
 	msgBody := formatIssueBody(msg)
 	_, err := rh.Client.CreateIssue(repo, title, msgBody)
 	return err
