@@ -18,6 +18,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -27,10 +28,10 @@ import (
 	"github.com/m-lab/alertmanager-github-receiver/alerts"
 	"github.com/m-lab/alertmanager-github-receiver/issues"
 	"github.com/m-lab/alertmanager-github-receiver/issues/local"
+	"github.com/m-lab/go/flagx"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	flag "github.com/spf13/pflag"
 )
 
 var (
@@ -42,7 +43,7 @@ var (
 	enableInMemory  = flag.Bool("enable-inmemory", false, "Perform all operations in memory, without using github API.")
 	receiverPort    = flag.String("port", "9393", "The port for accepting alertmanager webhook messages.")
 	alertLabel      = flag.String("alertlabel", "alert:boom:", "The default label applied to all alerts. Also used to search the repo to discover exisitng alerts.")
-	extraLabels     = flag.StringArray("label", nil, "Extra labels to add to issues at creation time.")
+	extraLabels     = flagx.StringArray{}
 )
 
 // Metrics.
@@ -71,6 +72,7 @@ func init() {
 		fmt.Fprintf(os.Stderr, usage, os.Args[0])
 		flag.PrintDefaults()
 	}
+	flag.Var(&extraLabels, "label", "Extra labels to add to issues at creation time.")
 }
 
 func serveReceiverHandler(client alerts.ReceiverClient) {
@@ -78,7 +80,7 @@ func serveReceiverHandler(client alerts.ReceiverClient) {
 		Client:      client,
 		DefaultRepo: *githubRepo,
 		AutoClose:   *enableAutoClose,
-		ExtraLabels: *extraLabels,
+		ExtraLabels: extraLabels,
 	}
 	http.Handle("/", &issues.ListHandler{ListClient: client})
 	http.Handle("/v1/receiver", promhttp.InstrumentHandlerDuration(receiverDuration, receiverHandler))
@@ -88,6 +90,8 @@ func serveReceiverHandler(client alerts.ReceiverClient) {
 
 func main() {
 	flag.Parse()
+	flagx.ArgsFromEnv(flag.CommandLine)
+
 	if (*authtoken == "" && *authtokenFile == "") || *githubOrg == "" || *githubRepo == "" {
 		flag.Usage()
 		os.Exit(1)
