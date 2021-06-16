@@ -17,4 +17,7 @@ RUN apk add --no-cache ca-certificates && \
     update-ca-certificates
 WORKDIR /
 COPY --from=builder /go/src/github.com/m-lab/alertmanager-github-receiver/github_receiver ./
+
+EXPOSE 9393
+
 ENTRYPOINT ["/github_receiver"]
