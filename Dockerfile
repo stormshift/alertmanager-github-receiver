@@ -17,7 +17,7 @@ RUN go build \
       -ldflags "-X github.com/m-lab/go/prometheusx.GitShortCommit=$(git log -1 --format=%h)" \
        ./cmd/github_receiver
 
-FROM registry.access.redhat.com/ubi8/ubi-micro
+FROM registry.access.redhat.com/ubi8/ubi-minimal
 WORKDIR /app
 COPY --from=builder /tmp/src/github.com/m-lab/alertmanager-github-receiver/github_receiver ./
 
