@@ -22,5 +22,6 @@ WORKDIR /app
 COPY --from=builder /tmp/src/github.com/m-lab/alertmanager-github-receiver/github_receiver ./
 
 EXPOSE 9393
+EXPOSE 9990
 
 ENTRYPOINT ["/app/github_receiver"]
